@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClassroomReserve | Admin Portal</title>
+<link rel="stylesheet" href="admin.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://script.google.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+<!-- ADMIN LOGIN -->
+
+<div id="adminAuth" class="admin-auth">
+    <div class="login-card">
+        <div class="admin-logo"><i data-lucide="shield-check"></i></div>
+        <h1>ClassroomReserve</h1>
+        <p>Administrator Portal</p>
+
+        <form id="adminLoginForm">
+            <label>Email Address</label>
+            <input type="email" id="adminEmail" name="email" autocomplete="username" required placeholder="Admin email">
+
+            <label>Password</label>
+            <input type="password" id="adminPassword" name="password" autocomplete="current-password" required placeholder="Password">
+
+            <label class="remember-row">
+                <input type="checkbox" id="rememberMe" checked>
+                Remember me on this device
+            </label>
+
+            <button class="admin-btn full" type="submit">Admin Login</button>
+        </form>
+
+        <small>Authorized administrators only.</small>
+    </div>
+</div>
+
+<!-- ADMIN APPLICATION -->
+
+<div id="adminApp" class="admin-app hidden">
+
+<aside class="admin-sidebar" id="adminSidebar">
+    <div class="admin-brand">
+        <i data-lucide="shield-check"></i>
+        <div><strong>ClassroomReserve</strong><small>Admin Portal</small></div>
+    </div>
+
+    <p class="menu-label">MAIN MENU</p>
+
+    <button class="admin-nav active" data-page="dashboard">
+        <i data-lucide="layout-dashboard"></i> Dashboard
+    </button>
+
+    <button class="admin-nav" data-page="rooms">
+        <i data-lucide="door-open"></i> Manage Classrooms
+    </button>
+
+    <button class="admin-nav" data-page="instructors">
+        <i data-lucide="users"></i> Instructors
+    </button>
+
+    <button class="admin-nav" data-page="reservations">
+        <i data-lucide="calendar-check"></i> Reservations
+    </button>
+
+    <button class="admin-nav" data-page="calendar">
+        <i data-lucide="calendar-days"></i> Calendar Schedule
+    </button>
+
+    <button class="admin-nav" data-page="notifications">
+        <i data-lucide="bell"></i> Notifications
+        <span id="adminNotificationCount" class="count hidden">0</span>
+    </button>
+
+    <button class="admin-nav" data-page="feedback">
+        <i data-lucide="message-square-warning"></i> Reports &amp; Feedback
+        <span id="adminFeedbackCount" class="count hidden">0</span>
+    </button>
+
+    <button class="admin-nav" data-page="reports">
+        <i data-lucide="chart-column"></i> Usage Reports
+    </button>
+
+    <div class="admin-sidebar-footer">
+        <button class="admin-nav" id="adminLogout">
+            <i data-lucide="log-out"></i> Logout
+        </button>
+    </div>
+</aside>
+
+<main class="admin-main">
+
+<header class="admin-topbar">
+    <button id="adminMenuToggle" class="admin-icon"><i data-lucide="menu"></i></button>
+    <h2 id="adminPageTitle">Dashboard</h2>
+    <div class="admin-user">
+        <div class="admin-avatar">A</div>
+        <span>Administrator</span>
+    </div>
+</header>
+
+<div class="admin-content">
+
+<!-- DASHBOARD -->
+
+<section class="admin-page active" id="admin-dashboard">
+    <div class="admin-welcome">
+        <div>
+            <span>ADMINISTRATION</span>
+            <h1>Welcome, Administrator!</h1>
+            <p>Manage university classrooms and reservations.</p>
+        </div>
+        <i data-lucide="school"></i>
+    </div>
+
+    <div class="admin-stats">
+        <div class="admin-stat">
+            <i data-lucide="door-open"></i>
+            <span>Active Classrooms</span>
+            <h2 id="totalRooms">0</h2>
+        </div>
+        <div class="admin-stat">
+            <i data-lucide="users"></i>
+            <span>Instructors</span>
+            <h2 id="totalInstructors">0</h2>
+        </div>
+        <div class="admin-stat">
+            <i data-lucide="calendar-check"></i>
+            <span>Confirmed Bookings</span>
+            <h2 id="totalBookings">0</h2>
+        </div>
+        <div class="admin-stat">
+            <i data-lucide="calendar-x"></i>
+            <span>Cancelled Bookings</span>
+            <h2 id="totalCancelled">0</h2>
+        </div>
+    </div>
+
+    <div class="admin-section-heading">
+        <h2>Recent Reservations</h2>
+        <button class="admin-outline" data-page="reservations">View All</button>
+    </div>
+
+    <div class="admin-table-card">
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Reservation ID</th>
+                        <th>Instructor</th>
+                        <th>Classroom</th>
+                        <th>Subject</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="recentReservations"></tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- CLASSROOM MANAGEMENT -->
+
+<section class="admin-page" id="admin-rooms">
+    <div class="admin-section-heading">
+        <div>
+            <h1>Manage Classrooms</h1>
+            <p>Add, edit, and deactivate university classrooms.</p>
+        </div>
+        <button class="admin-btn" id="addRoomBtn">
+            <i data-lucide="plus"></i> Add Classroom
+        </button>
+    </div>
+
+    <div class="admin-filters">
+        <input type="search" id="roomSearch" placeholder="Search classrooms by name, building, floor or facilities...">
+    </div>
+
+    <p class="filter-summary" id="roomSummary"></p>
+
+    <div class="admin-room-grid" id="adminRoomList"></div>
+</section>
+
+<!-- INSTRUCTORS -->
+
+<section class="admin-page" id="admin-instructors">
+    <div class="admin-section-heading">
+        <div>
+            <h1>Instructor Management</h1>
+            <p>View and manage registered instructors.</p>
+        </div>
+    </div>
+
+    <div class="admin-filters">
+        <input type="search" id="instructorSearch" placeholder="Search instructor...">
+        <select id="instructorDepartment">
+            <option value="">All Departments</option>
+        </select>
+    </div>
+
+    <div class="admin-table-card">
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Instructor</th>
+                        <th>Employee ID</th>
+                        <th>Department</th>
+                        <th>Email</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="instructorList"></tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- RESERVATIONS -->
+
+<section class="admin-page" id="admin-reservations">
+    <div class="admin-section-heading">
+        <div>
+            <h1>All Reservations</h1>
+            <p>Upcoming bookings stay here until they are done, then move to Completed. Cancelled ones are kept separately.</p>
+        </div>
+        <button class="admin-outline danger-outline hidden" id="emptyResTrash">Empty Trash</button>
+    </div>
+
+    <div class="notif-tabs">
+        <button type="button" class="notif-tab active" data-res-view="upcoming">Upcoming</button>
+        <button type="button" class="notif-tab" data-res-view="completed">Completed</button>
+        <button type="button" class="notif-tab" data-res-view="cancelled">Cancelled</button>
+        <button type="button" class="notif-tab" data-res-view="trash">Trash</button>
+    </div>
+
+    <div class="admin-filters">
+        <input type="search" id="bookingSearch" placeholder="Search reservations...">
+        <input type="date" id="bookingDate" title="Show reservations for this date">
+        <button class="admin-outline" id="bookingAllDates" type="button">Show All Dates</button>
+    </div>
+
+    <p class="filter-summary" id="bookingSummary"></p>
+
+    <div class="admin-table-card">
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Reservation ID</th>
+                        <th>Instructor</th>
+                        <th>Room</th>
+                        <th>Subject</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Purpose</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="allReservations"></tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- CALENDAR -->
+
+<section class="admin-page" id="admin-calendar">
+    <div class="admin-section-heading">
+        <div>
+            <h1>Calendar Schedule</h1>
+            <p>View classroom reservation schedules.</p>
+        </div>
+    </div>
+
+    <div class="admin-filters">
+        <select id="adminCalendarRoom">
+            <option value="">All Classrooms</option>
+        </select>
+        <input type="date" id="adminCalendarDate">
+        <button class="admin-btn" id="adminCalendarBtn">View Schedule</button>
+    </div>
+
+    <div class="admin-table-card">
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Reservation ID</th>
+                        <th>Classroom</th>
+                        <th>Date</th>
+                        <th>Instructor</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Subject</th>
+                        <th>Purpose</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="adminCalendarList"></tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- NOTIFICATIONS -->
+
+<section class="admin-page" id="admin-notifications">
+    <div class="admin-section-heading">
+        <div>
+            <h1>Notifications</h1>
+            <p>Booking updates and instructor cancellation alerts.</p>
+        </div>
+        <div class="heading-actions">
+            <button class="admin-outline" id="adminMarkRead">Mark All Read</button>
+            <button class="admin-outline danger-outline hidden" id="adminDeleteArchived">Move All Archived to Trash</button>
+            <button class="admin-outline danger-outline hidden" id="adminEmptyTrash">Empty Trash</button>
+        </div>
+    </div>
+
+    <div class="notif-tabs">
+        <button type="button" class="notif-tab active" data-notif-view="active">Inbox</button>
+        <button type="button" class="notif-tab" data-notif-view="archived">Archived</button>
+        <button type="button" class="notif-tab" data-notif-view="trash">Trash</button>
+    </div>
+
+    <div id="adminNotificationList" class="admin-notifications"></div>
+</section>
+
+<!-- REPORTS & FEEDBACK FROM INSTRUCTORS -->
+
+<section class="admin-page" id="admin-feedback">
+    <div class="admin-section-heading">
+        <div>
+            <h1>Reports &amp; Feedback</h1>
+            <p>Problems and feedback sent by instructors. Reply and mark them as reviewed or resolved.</p>
+        </div>
+    </div>
+
+    <div class="notif-tabs">
+        <button type="button" class="notif-tab active" data-fb-view="All">All</button>
+        <button type="button" class="notif-tab" data-fb-view="New">New</button>
+        <button type="button" class="notif-tab" data-fb-view="Reviewed">Reviewed</button>
+        <button type="button" class="notif-tab" data-fb-view="Resolved">Resolved</button>
+    </div>
+
+    <div id="adminFeedbackList" class="fb-list"></div>
+</section>
+
+<!-- REPORTS -->
+
+<section class="admin-page" id="admin-reports">
+    <div class="admin-section-heading">
+        <div>
+            <h1>Classroom Usage Reports</h1>
+            <p>A plain summary of how the classrooms were booked. Choose a period to narrow it down.</p>
+        </div>
+        <button class="admin-btn" id="printReport">
+            <i data-lucide="printer"></i> Print Report
+        </button>
+    </div>
+
+    <div class="admin-filters report-filters">
+        <select id="reportPeriod" title="Report period">
+            <option value="all">All time</option>
+            <option value="month">This month</option>
+            <option value="lastmonth">Last month</option>
+            <option value="30days">Last 30 days</option>
+            <option value="year">This year</option>
+        </select>
+    </div>
+
+    <p class="filter-summary" id="reportPeriodLabel"></p>
+
+    <div class="admin-stats">
+        <div class="admin-stat">
+            <span>Total Reservations</span>
+            <h2 id="reportTotal">0</h2>
+            <small>Every booking made in this period.</small>
+        </div>
+        <div class="admin-stat">
+            <span>Upcoming</span>
+            <h2 id="reportUpcoming">0</h2>
+            <small>Confirmed and still to happen.</small>
+        </div>
+        <div class="admin-stat">
+            <span>Completed</span>
+            <h2 id="reportCompleted">0</h2>
+            <small>Already took place.</small>
+        </div>
+        <div class="admin-stat">
+            <span>Cancelled</span>
+            <h2 id="reportCancelled">0</h2>
+            <small>Cancelled and not used.</small>
+        </div>
+    </div>
+
+    <div class="admin-table-card">
+        <h3 class="report-heading">Key Findings</h3>
+        <ul class="report-findings" id="reportHighlights"></ul>
+    </div>
+
+    <div class="admin-table-card">
+        <h3 class="report-heading">Classroom Utilization</h3>
+        <p class="report-note">How much each classroom was booked. "Bookings" counts confirmed reservations (completed + upcoming); cancelled ones are shown separately and are not counted as use.</p>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Classroom</th>
+                        <th>Building</th>
+                        <th>Completed</th>
+                        <th>Upcoming</th>
+                        <th>Cancelled</th>
+                        <th>Hours Booked</th>
+                        <th>Share of Bookings</th>
+                    </tr>
+                </thead>
+                <tbody id="roomUsageReport"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="admin-table-card report-monthly">
+        <h3 class="report-heading">Monthly Reservations</h3>
+        <p class="report-note">Reservations grouped by the month of the class date.</p>
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Completed</th>
+                        <th>Upcoming</th>
+                        <th>Cancelled</th>
+                        <th>Total</th>
+                        <th>Activity</th>
+                    </tr>
+                </thead>
+                <tbody id="monthlyReport"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="admin-table-card report-glossary">
+        <h3 class="report-heading">How to Read This Report</h3>
+        <ul class="report-findings">
+            <li><strong>Completed</strong> – a confirmed reservation whose end time has passed.</li>
+            <li><strong>Upcoming</strong> – a confirmed reservation that has not finished yet.</li>
+            <li><strong>Cancelled</strong> – cancelled by the instructor or the administrator.</li>
+            <li><strong>Hours Booked</strong> – total hours of completed and upcoming reservations.</li>
+            <li><strong>Share of Bookings</strong> – this classroom's part of all confirmed bookings.</li>
+            <li><strong>Cancellation rate</strong> – cancelled reservations divided by all reservations.</li>
+        </ul>
+    </div>
+</section>
+
+</div>
+</main>
+</div>
+
+<!-- ROOM MODAL -->
+
+<div class="admin-modal hidden" id="roomModal">
+    <div class="admin-modal-content">
+        <div class="admin-modal-header">
+            <h2 id="roomModalTitle">Add Classroom</h2>
+            <button id="closeRoomModal" class="admin-icon"><i data-lucide="x"></i></button>
+        </div>
+
+        <form id="roomForm">
+            <input type="hidden" id="editRoomID">
+
+            <label>Classroom Name *</label>
+            <input id="roomName" required placeholder="e.g. Room 101">
+
+            <label>Building *</label>
+            <input id="roomBuilding" required placeholder="Building name">
+
+            <label>Floor</label>
+            <input id="roomFloor" placeholder="e.g. 2nd Floor">
+
+            <label>Capacity *</label>
+            <input type="number" id="roomCapacity" min="1" required>
+
+            <label>Facilities</label>
+            <input id="roomFacilities" placeholder="Projector, Wi-Fi, Air Conditioning">
+
+            <label>Room Photo</label>
+            <input type="hidden" id="roomPhoto">
+            <input type="file" id="roomPhotoFile" accept="image/png,image/jpeg,image/webp">
+            <img id="roomPhotoPreview" class="photo-preview hidden" alt="Room photo preview">
+            <small class="photo-hint">Upload a JPG, PNG or WebP picture from your device. It is resized automatically.</small>
+
+            <label>Description</label>
+            <textarea id="roomDescription" rows="3"></textarea>
+
+            <label>Status</label>
+            <select id="roomStatus">
+                <option>Active</option>
+                <option>Inactive</option>
+            </select>
+
+            <button type="submit" class="admin-btn full">Save Classroom</button>
+        </form>
+    </div>
+</div>
+
+<!-- DELETE REPORT / FEEDBACK MODAL -->
+
+<div class="admin-modal hidden" id="deleteFeedbackModal">
+    <div class="admin-modal-content">
+        <div class="admin-modal-header">
+            <h2>Delete Report / Feedback</h2>
+            <button type="button" id="closeDeleteFeedback" class="admin-icon"><i data-lucide="x"></i></button>
+        </div>
+
+        <p class="fb-modal-text">Delete <strong id="deleteFeedbackName"></strong> from the admin list?</p>
+        <p class="fb-modal-note">Only your copy is removed. The instructor keeps theirs.</p>
+
+        <div class="fb-modal-actions">
+            <button type="button" class="admin-outline" id="cancelDeleteFeedback">Go Back</button>
+            <button type="button" class="admin-btn fb-danger" id="confirmDeleteFeedback">Delete</button>
+        </div>
+    </div>
+</div>
+
+<div id="adminToast" class="admin-toast hidden"></div>
+
+<script src="admin.js"></script>
+<script>
+/* Show / hide password button for every password field.
+   Works on phones, tablets and desktop. Shared by admin.html and instructor.html. */
+(function () {
+    "use strict";
+
+    var EYE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+    var EYE_OFF = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.9 10.9 0 0 1 12 19c-6.4 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A10.4 10.4 0 0 1 12 4c6.4 0 10 7 10 7a18.6 18.6 0 0 1-2.16 3.19M14.12 14.12A3 3 0 1 1 9.88 9.88"/><path d="M1 1l22 22"/></svg>';
+
+    var style = document.createElement("style");
+    style.textContent =
+        ".pw-wrap{position:relative;display:block;width:100%}" +
+        ".pw-wrap>input{display:block;padding-right:48px!important}" +
+        ".pw-toggle{position:absolute;top:0;right:0;height:100%;width:48px;padding:0;border:0;" +
+        "background:transparent;color:#6b7280;display:flex;align-items:center;justify-content:center;" +
+        "cursor:pointer;border-radius:0 8px 8px 0;-webkit-tap-highlight-color:transparent}" +
+        ".pw-toggle:hover,.pw-toggle:focus-visible,.pw-toggle[aria-pressed=true]{color:#24855B}" +
+        ".pw-toggle:focus-visible{outline:2px solid #24855B;outline-offset:-2px}" +
+        ".pw-wrap input::-ms-reveal,.pw-wrap input::-ms-clear{display:none}";
+    document.head.appendChild(style);
+
+    function setVisible(input, btn, show) {
+        input.type = show ? "text" : "password";
+        btn.innerHTML = show ? EYE_OFF : EYE;
+        btn.setAttribute("aria-pressed", show ? "true" : "false");
+        btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    }
+
+    function enhance(input) {
+        if (input.dataset.pwToggle) return;
+        input.dataset.pwToggle = "1";
+
+        var wrap = document.createElement("div");
+        wrap.className = "pw-wrap";
+        input.parentNode.insertBefore(wrap, input);
+        wrap.appendChild(input);
+
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "pw-toggle";
+        btn.tabIndex = 0;
+        wrap.appendChild(btn);
+        setVisible(input, btn, false);
+
+        input.setAttribute("autocapitalize", "off");
+        input.setAttribute("autocorrect", "off");
+        input.setAttribute("spellcheck", "false");
+
+        // keep the keyboard open on phones when tapping the eye
+        btn.addEventListener("pointerdown", function (e) { e.preventDefault(); });
+        btn.addEventListener("click", function () {
+            setVisible(input, btn, input.type === "password");
+        });
+    }
+
+    function scan(root) {
+        (root || document).querySelectorAll('input[type="password"]').forEach(enhance);
+    }
+
+    scan();
+
+    // password fields that are added later (pop-ups, etc.)
+    new MutationObserver(function () { scan(); }).observe(document.body, {childList: true, subtree: true});
+})();
+</script>
+<script>lucide.createIcons();</script>
+</body>
+</html>
