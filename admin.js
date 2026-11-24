@@ -1169,24 +1169,30 @@ document.addEventListener("click", async e => {
 
 let adminResLimit = 50;
 
-const adminResTrash = () => loadJSON("admin_res_trash", []);
-const adminResPurged = () => loadJSON("admin_res_purged", []);
+/* Trash / permanent delete are saved in the Reservations sheet (AdminView column),
+   so every device and every administrator sees the same list. */
+async function setAdminResView(ids, view) {
+    const result = await adminPost("setAdminReservationView", {reservationIDs: ids, view});
+    if ((result.count || 0) < ids.length) {
+        await adminLoadAll({silent: true});   // show what the server really has
+        throw new Error("The change could not be saved on the server. Please try again.");
+    }
+    adminReservations.forEach(r => { if (ids.includes(r.ReservationID)) r.AdminView = view; });
+    renderAdminReservations();
+}
 
 let adminResView = "upcoming";
 
 function renderAdminReservations() {
     const search = (A("bookingSearch").value || "").toLowerCase();
     const date = A("bookingDate").value;
-    const trashed = adminResTrash();
-    const purged = adminResPurged();
-
     // which area a reservation belongs to
     const area = r =>
         r.Status === "Cancelled" ? "cancelled"
-        : adminIsDone(r) ? (trashed.includes(r.ReservationID) ? "trash" : "completed")
+        : adminIsDone(r) ? (r.AdminView === "Trash" ? "trash" : "completed")
         : "upcoming";
 
-    const visible = adminReservations.filter(r => !purged.includes(r.ReservationID));
+    const visible = adminReservations.filter(r => r.AdminView !== "Deleted");
 
     const counts = {upcoming: 0, completed: 0, cancelled: 0, trash: 0};
     visible.forEach(r => counts[area(r)]++);
@@ -1273,52 +1279,53 @@ function describeAdminRes(r) {
     return `${r.InstructorName || "an instructor"}'s reservation for ${r.RoomName || "a classroom"} on ${adminDate(r.Date)}, ${adminTime(r.StartTime)} - ${adminTime(r.EndTime)}`;
 }
 
-document.addEventListener("click", e => {
+document.addEventListener("click", async e => {
     const del = e.target.closest("[data-res-delete]");
-    if (del) {
-        const id = del.dataset.resDelete;
-        const r = adminReservations.find(x => x.ReservationID === id);
-        saveJSON("admin_res_trash", [...new Set([...adminResTrash(), id])]);
-        renderAdminReservations();
-        adminToast("Moved to Trash. Open the Trash tab to restore or delete it permanently.");
-        if (r) addAdminNotif("Reservation deleted", `You moved ${describeAdminRes(r)} to Trash.`, {
-            RoomName: r.RoomName, BookingDate: r.Date, BookingTime: `${r.StartTime}-${r.EndTime}`
-        });
-        return;
-    }
-
     const restore = e.target.closest("[data-res-restore]");
-    if (restore) {
-        saveJSON("admin_res_trash", adminResTrash().filter(x => x !== restore.dataset.resRestore));
-        renderAdminReservations();
-        adminToast("Reservation restored to Completed.");
-        return;
-    }
-
     const purge = e.target.closest("[data-res-purge]");
-    if (purge) {
+    if (!del && !restore && !purge) return;
+
+    try {
+        if (del) {
+            const id = del.dataset.resDelete;
+            const r = adminReservations.find(x => x.ReservationID === id);
+            await setAdminResView([id], "Trash");
+            adminToast("Moved to Trash. Open the Trash tab to restore or delete it permanently.");
+            if (r) addAdminNotif("Reservation deleted", `You moved ${describeAdminRes(r)} to Trash.`, {
+                RoomName: r.RoomName, BookingDate: r.Date, BookingTime: `${r.StartTime}-${r.EndTime}`
+            });
+            return;
+        }
+
+        if (restore) {
+            await setAdminResView([restore.dataset.resRestore], "");
+            adminToast("Reservation restored to Completed.");
+            return;
+        }
+
         const id = purge.dataset.resPurge;
         const r = adminReservations.find(x => x.ReservationID === id);
-        if (!confirm("Permanently delete this reservation from the list? Usage reports still count it.")) return;
-        saveJSON("admin_res_purged", [...new Set([...adminResPurged(), id])]);
-        saveJSON("admin_res_trash", adminResTrash().filter(x => x !== id));
-        renderAdminReservations();
+        await setAdminResView([id], "Deleted");
         adminToast("Reservation permanently deleted from the list.");
         if (r) addAdminNotif("Reservation permanently deleted", `You permanently deleted ${describeAdminRes(r)} from the list.`, {
             RoomName: r.RoomName, BookingDate: r.Date, BookingTime: `${r.StartTime}-${r.EndTime}`
         });
+    } catch (error) {
+        adminToast(error.message, true);
     }
 });
 
-A("emptyResTrash").onclick = () => {
-    const ids = adminResTrash().filter(id => !adminResPurged().includes(id) && adminReservations.some(r => r.ReservationID === id));
+A("emptyResTrash").onclick = async () => {
+    const ids = adminReservations.filter(r => r.AdminView === "Trash").map(r => r.ReservationID);
     if (!ids.length) return;
     if (!confirm(`Permanently delete ${ids.length} reservation(s) in Trash from the list? Usage reports still count them.`)) return;
-    saveJSON("admin_res_purged", [...new Set([...adminResPurged(), ...ids])]);
-    saveJSON("admin_res_trash", adminResTrash().filter(x => !ids.includes(x)));
-    renderAdminReservations();
-    adminToast("Trash emptied.");
-    addAdminNotif("Trash emptied", `${ids.length} completed reservation(s) were permanently deleted from the list.`);
+    try {
+        await setAdminResView(ids, "Deleted");
+        adminToast("Trash emptied.");
+        addAdminNotif("Trash emptied", `${ids.length} completed reservation(s) were permanently deleted from the list.`);
+    } catch (error) {
+        adminToast(error.message, true);
+    }
 };
 
 A("bookingDate").value = localToday();
