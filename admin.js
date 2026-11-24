@@ -758,13 +758,17 @@ A("adminMenuToggle").onclick = () =>
 
 /* LOAD DATA */
 
+let adminDataVer = "";
+
 async function adminLoadAll(opts = {}) {
     try {
         let data;
 
         try {
             // One request for everything (fast)
-            data = await adminGet("getBootstrap");
+            // background refresh: send the version we have; the server answers
+            // "unchanged" (a few bytes) when nothing new happened
+            data = await adminGet("getBootstrap", opts.silent && !opts.force && adminDataVer ? {since: adminDataVer} : {});
         } catch (error) {
             if (!/unknown action/i.test(error.message)) throw error;
 
@@ -785,6 +789,12 @@ async function adminLoadAll(opts = {}) {
                 reports: results[4].reports
             };
         }
+
+        if (data.unchanged) {
+            renderAdminReservations();   // time-based list only
+            return;
+        }
+        adminDataVer = data.ver || "";
 
         adminRooms = data.rooms || [];
         adminInstructors = data.instructors || [];
@@ -1174,7 +1184,7 @@ let adminResLimit = 50;
 async function setAdminResView(ids, view) {
     const result = await adminPost("setAdminReservationView", {reservationIDs: ids, view});
     if ((result.count || 0) < ids.length) {
-        await adminLoadAll({silent: true});   // show what the server really has
+        await adminLoadAll({silent: true, force: true});   // show what the server really has
         throw new Error("The change could not be saved on the server. Please try again.");
     }
     adminReservations.forEach(r => { if (ids.includes(r.ReservationID)) r.AdminView = view; });
