@@ -521,6 +521,181 @@ function adminEscape(value) {
     })[c]);
 }
 
+/* ---------- CONFIRM DIALOG (replaces the browser's confirm() / prompt()) ----------
+   adminConfirm({title, message, details:[[label,value]], confirmText, tone}) -> true/false
+   adminDialog({... , input:{label, placeholder}})  -> {ok, value}  (reason is required) */
+(function injectDialogStyles() {
+    if (document.getElementById("acd-css")) return;
+    const st = document.createElement("style");
+    st.id = "acd-css";
+    st.textContent = `
+.acd-backdrop{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;
+    padding:16px;background:rgba(16,39,29,.55);backdrop-filter:blur(2px);animation:acdFade .15s ease-out}
+.acd-box{width:100%;max-width:420px;max-height:92vh;overflow-y:auto;background:#fff;color:#1D3329;
+    border-radius:16px;padding:26px 24px 20px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,.28);
+    animation:acdPop .18s ease-out}
+.acd-icon{width:54px;height:54px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center}
+.acd-icon svg{width:26px;height:26px}
+.acd-danger .acd-icon,.acd-icon.acd-danger{background:#FDECEC;color:#D94343}
+.acd-warning .acd-icon,.acd-icon.acd-warning{background:#FFF1D6;color:#B87500}
+.acd-box h3{font-size:19px;font-weight:700;margin:0 0 8px;color:#123D2C}
+.acd-msg{margin:0 0 14px;color:#5E6F66;font-size:14px;line-height:1.55}
+.acd-details{margin:0 0 14px;padding:10px 14px;border:1px solid #E1E9E3;background:#F5F7F6;border-radius:12px;text-align:left}
+.acd-details div{display:flex;justify-content:space-between;gap:14px;padding:4px 0;font-size:13px}
+.acd-details span{color:#75847C;flex-shrink:0}
+.acd-details strong{color:#1D3329;text-align:right;word-break:break-word}
+.acd-field{text-align:left;margin:0 0 14px}
+.acd-field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#1D3329}
+.acd-field textarea{width:100%;min-height:78px;resize:vertical;padding:10px 12px;border:1px solid #E1E9E3;
+    border-radius:10px;background:#fff;color:#1D3329;font:inherit;font-size:14px;outline:none}
+.acd-field textarea:focus{border-color:#16784B;box-shadow:0 0 0 3px rgba(22,120,75,.15)}
+.acd-field.bad textarea{border-color:#D94343}
+.acd-err{display:none;color:#D94343;font-size:12px;margin-top:5px}
+.acd-field.bad .acd-err{display:block}
+.acd-actions{display:flex;gap:10px;margin-top:4px}
+.acd-btn{flex:1;padding:11px 14px;border-radius:10px;font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;transition:filter .15s,background .15s}
+.acd-cancel{background:#fff;border-color:#CFDAD3;color:#1D3329}
+.acd-cancel:hover{background:#F5F7F6}
+.acd-ok{color:#fff;background:#16784B}
+.acd-ok.acd-danger{background:#D94343}
+.acd-ok.acd-warning{background:#C27F00}
+.acd-ok:hover{filter:brightness(1.08)}
+.acd-btn:focus-visible{outline:3px solid rgba(22,120,75,.35);outline-offset:2px}
+@keyframes acdFade{from{opacity:0}to{opacity:1}}
+@keyframes acdPop{from{opacity:0;transform:translateY(8px) scale(.97)}to{opacity:1;transform:none}}
+html[data-theme="dark"] .acd-backdrop{background:rgba(0,0,0,.68)}
+html[data-theme="dark"] .acd-box{background:#16201B;color:#E4EEE8;border:1px solid #2B3A33}
+html[data-theme="dark"] .acd-box h3{color:#E4EEE8}
+html[data-theme="dark"] .acd-msg{color:#93A69C}
+html[data-theme="dark"] .acd-details{background:#101914;border-color:#2B3A33}
+html[data-theme="dark"] .acd-details strong,html[data-theme="dark"] .acd-field label{color:#E4EEE8}
+html[data-theme="dark"] .acd-details span{color:#93A69C}
+html[data-theme="dark"] .acd-field textarea{background:#101914;border-color:#2B3A33;color:#E4EEE8}
+html[data-theme="dark"] .acd-cancel{background:#1C2924;border-color:#2B3A33;color:#E4EEE8}
+html[data-theme="dark"] .acd-cancel:hover{background:#24382F}
+html[data-theme="dark"] .acd-danger .acd-icon,html[data-theme="dark"] .acd-icon.acd-danger{background:#3A1D1F;color:#F28585}
+html[data-theme="dark"] .acd-warning .acd-icon,html[data-theme="dark"] .acd-icon.acd-warning{background:#3A2E12;color:#F0C676}
+@media (max-width:420px){.acd-actions{flex-direction:column-reverse}}
+@media (prefers-reduced-motion:reduce){.acd-backdrop,.acd-box{animation:none}}
+`;
+    document.head.appendChild(st);
+})();
+
+const ACD_ICONS = {
+    danger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
+    warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>'
+};
+
+function adminDialog(o = {}) {
+    return new Promise(resolve => {
+        const tone = o.tone === "warning" ? "warning" : "danger";
+        const previous = document.activeElement;
+
+        const el = (tag, cls, text) => {
+            const n = document.createElement(tag);
+            if (cls) n.className = cls;
+            if (text !== undefined) n.textContent = text;
+            return n;
+        };
+
+        const backdrop = el("div", "acd-backdrop");
+        backdrop.setAttribute("role", "alertdialog");
+        backdrop.setAttribute("aria-modal", "true");
+
+        const box = el("div", "acd-box");
+        const icon = el("div", "acd-icon " + "acd-" + tone);
+        icon.innerHTML = ACD_ICONS[tone];
+        icon.setAttribute("aria-hidden", "true");
+
+        const title = el("h3", "", o.title || "Are you sure?");
+        title.id = "acdTitle";
+        backdrop.setAttribute("aria-labelledby", "acdTitle");
+
+        box.append(icon, title);
+
+        if (o.message) box.append(el("p", "acd-msg", o.message));
+
+        if (o.details && o.details.length) {
+            const list = el("div", "acd-details");
+            o.details.filter(d => d && d[1]).forEach(([label, value]) => {
+                const row = el("div");
+                row.append(el("span", "", label), el("strong", "", String(value)));
+                list.append(row);
+            });
+            box.append(list);
+        }
+
+        let field = null, textarea = null;
+        if (o.input) {
+            field = el("div", "acd-field");
+            const label = el("label", "", o.input.label || "Reason");
+            textarea = el("textarea");
+            textarea.placeholder = o.input.placeholder || "";
+            textarea.maxLength = 300;
+            label.htmlFor = textarea.id = "acdInput";
+            const err = el("small", "acd-err", o.input.error || "Please enter a reason.");
+            textarea.addEventListener("input", () => field.classList.remove("bad"));
+            field.append(label, textarea, err);
+            box.append(field);
+        }
+
+        const cancelBtn = el("button", "acd-btn acd-cancel", o.cancelText || "Cancel");
+        cancelBtn.type = "button";
+        const okBtn = el("button", "acd-btn acd-ok acd-" + tone, o.confirmText || "Confirm");
+        okBtn.type = "button";
+        box.append(el("div", "acd-actions"));
+        box.lastChild.append(cancelBtn, okBtn);
+
+        backdrop.append(box);
+        document.body.append(backdrop);
+
+        function close(result) {
+            document.removeEventListener("keydown", onKey, true);
+            backdrop.remove();
+            if (previous && previous.focus) { try { previous.focus(); } catch (e) {} }
+            resolve(result);
+        }
+
+        function submit() {
+            if (textarea) {
+                const value = textarea.value.trim();
+                if (!value) { field.classList.add("bad"); textarea.focus(); return; }
+                close({ok: true, value});
+            } else {
+                close({ok: true, value: ""});
+            }
+        }
+
+        function onKey(e) {
+            if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close({ok: false, value: null}); return; }
+
+            if (e.key === "Enter" && e.target !== textarea && e.target !== cancelBtn) {
+                e.preventDefault();
+                submit();
+                return;
+            }
+
+            if (e.key === "Tab") {
+                const items = [textarea, cancelBtn, okBtn].filter(Boolean);
+                const first = items[0], last = items[items.length - 1];
+                if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+                else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+            }
+        }
+
+        document.addEventListener("keydown", onKey, true);
+        cancelBtn.onclick = () => close({ok: false, value: null});
+        okBtn.onclick = submit;
+        backdrop.addEventListener("mousedown", e => { if (e.target === backdrop) close({ok: false, value: null}); });
+
+        (textarea || cancelBtn).focus();   // the safe choice is focused by default
+    });
+}
+
+async function adminConfirm(o) {
+    return (await adminDialog(o)).ok;
+}
+
 function adminToast(message, error = false) {
     const el = A("adminToast");
     el.textContent = message;
@@ -1010,7 +1185,13 @@ document.addEventListener("click", async e => {
 
         if (!room) return;
 
-        if (!confirm(`Deactivate ${room.RoomName}?`)) return;
+        if (!await adminConfirm({
+            tone: "warning",
+            title: "Deactivate classroom?",
+            message: "Instructors will no longer be able to reserve this classroom.",
+            details: [["Classroom", room.RoomName], ["Building", room.Building]],
+            confirmText: "Deactivate"
+        })) return;
 
         try {
             const result = await adminPost("adminDeleteRoom", {
@@ -1034,7 +1215,13 @@ document.addEventListener("click", async e => {
     const room = adminRooms.find(r => r.RoomID === button.dataset.removeRoom);
     if (!room) return;
 
-    if (!confirm(`Permanently delete ${room.RoomName}? This cannot be undone.`)) return;
+    if (!await adminConfirm({
+        tone: "danger",
+        title: "Delete classroom?",
+        message: "This permanently removes the classroom and cannot be undone. Past reservations keep the room name in the records.",
+        details: [["Classroom", room.RoomName], ["Building", room.Building], ["Floor", room.Floor]],
+        confirmText: "Delete classroom"
+    })) return;
 
     try {
         const result = await adminPost("adminRemoveRoom", {roomId:room.RoomID});
@@ -1163,7 +1350,13 @@ document.addEventListener("click", async e => {
     const person = adminInstructors.find(i => i.instructorID === button.dataset.removeInstructor);
     if (!person) return;
 
-    if (!confirm(`Permanently delete instructor ${person.fullName}? Their past reservations stay in the records. This cannot be undone.`)) return;
+    if (!await adminConfirm({
+        tone: "danger",
+        title: "Delete instructor?",
+        message: "This permanently removes the account and cannot be undone. Their past reservations stay in the records.",
+        details: [["Name", person.fullName], ["Employee ID", person.employeeID], ["Email", person.email]],
+        confirmText: "Delete instructor"
+    })) return;
 
     try {
         const result = await adminPost("adminRemoveInstructor", {instructorID:person.instructorID});
@@ -1328,7 +1521,12 @@ document.addEventListener("click", async e => {
 A("emptyResTrash").onclick = async () => {
     const ids = adminReservations.filter(r => r.AdminView === "Trash").map(r => r.ReservationID);
     if (!ids.length) return;
-    if (!confirm(`Permanently delete ${ids.length} reservation(s) in Trash from the list? Usage reports still count them.`)) return;
+    if (!await adminConfirm({
+        tone: "danger",
+        title: "Empty Trash?",
+        message: `Permanently delete ${ids.length} reservation(s) from the list? Usage reports still count them. This cannot be undone.`,
+        confirmText: "Delete permanently"
+    })) return;
     try {
         await setAdminResView(ids, "Deleted");
         adminToast("Trash emptied.");
@@ -1376,12 +1574,26 @@ document.addEventListener("click",async e => {
     const button = e.target.closest("[data-cancel-admin]");
     if (!button) return;
 
-    const reason = prompt("Enter administrator cancellation reason:");
-    if (reason === null || !reason.trim()) return;
-
     const record = adminReservations.find(r =>
         r.ReservationID === button.dataset.cancelAdmin
     );
+
+    const answer = await adminDialog({
+        tone: "danger",
+        title: "Cancel this reservation?",
+        message: "The classroom will be freed and the instructor will be notified.",
+        details: record ? [
+            ["Instructor", record.InstructorName],
+            ["Classroom", record.RoomName],
+            ["Date", adminDate(record.Date)],
+            ["Time", `${adminTime(record.StartTime)} - ${adminTime(record.EndTime)}`]
+        ] : [],
+        input: {label: "Reason for cancelling", placeholder: "e.g. Room needed for a school event", error: "Please enter a cancellation reason."},
+        confirmText: "Cancel reservation",
+        cancelText: "Keep reservation"
+    });
+    if (!answer.ok) return;
+    const reason = answer.value;
 
     try {
         const result = await adminPost("adminUpdateReservation", {
@@ -1712,7 +1924,12 @@ document.addEventListener("click", async e => {
     const purge = e.target.closest("[data-notif-purge]");
 
     if (purge) {
-        if (!confirm("Permanently delete this notification? This cannot be undone.")) return;
+        if (!await adminConfirm({
+            tone: "danger",
+            title: "Delete notification?",
+            message: "This permanently deletes the notification and cannot be undone.",
+            confirmText: "Delete permanently"
+        })) return;
         purgeAdminNotes([purge.dataset.notifPurge]);
         adminToast("Notification permanently deleted.");
         return;
@@ -1723,10 +1940,15 @@ document.addEventListener("click", async e => {
     if (card && !e.target.closest(".notif-actions")) markAdminNoteRead(card.dataset.nid);
 });
 
-A("adminDeleteArchived").onclick = () => {
+A("adminDeleteArchived").onclick = async () => {
     const {archived} = adminNoteBuckets();
     if (!archived.length) return;
-    if (!confirm(`Move ${archived.length} archived notification(s) to Trash?`)) return;
+    if (!await adminConfirm({
+        tone: "warning",
+        title: "Move archived to Trash?",
+        message: `${archived.length} archived notification(s) will move to Trash. You can restore them from the Trash tab.`,
+        confirmText: "Move to Trash"
+    })) return;
 
     const ids = archived.map(n => String(n.NotificationID));
     saveJSON("admin_trash_ids", [...new Set([...adminTrashIds(), ...ids])]);
@@ -1734,10 +1956,15 @@ A("adminDeleteArchived").onclick = () => {
     adminToast("Moved to Trash. You can restore them from the Trash tab.");
 };
 
-A("adminEmptyTrash").onclick = () => {
+A("adminEmptyTrash").onclick = async () => {
     const {trash} = adminNoteBuckets();
     if (!trash.length) return;
-    if (!confirm(`Permanently delete ${trash.length} notification(s) in Trash? This cannot be undone.`)) return;
+    if (!await adminConfirm({
+        tone: "danger",
+        title: "Empty Trash?",
+        message: `Permanently delete ${trash.length} notification(s)? This cannot be undone.`,
+        confirmText: "Delete permanently"
+    })) return;
     purgeAdminNotes(trash.map(n => String(n.NotificationID)));
     adminToast("Trash emptied.");
 };
